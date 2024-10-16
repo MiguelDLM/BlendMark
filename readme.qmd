@@ -1,3 +1,10 @@
+---
+title: "BlendMark"
+author: "E. Miguel Diaz de Leon M."
+date: today
+format: gfm
+---
+
 # BlendMark
 
 This addon allows you to create landmarks for Geometric Morphometrics analysis in Blender. Currently is possible to create landmarks for 2D and 3D.
