@@ -3,6 +3,7 @@ import os
 from bpy.types import Operator
 from bpy.props import StringProperty, CollectionProperty
 from bpy_extras.io_utils import ImportHelper
+import bmesh
 
 class VIEW3D_OT_BlendMark_BrowseFolderOperator(Operator, ImportHelper):
     bl_idname = "view3d.browse_folder"
@@ -328,9 +329,18 @@ class VIEW3D_OT_BlendMark_Generate3DLandmarksOperator(Operator):
 
         # Check if the active object is a mesh object
         if active_object and active_object.type == 'MESH':
+            # Define the name for the new landmarks object
+            landmarks_object_name = f"{active_object.name}_Landmarks"
+            
+            # Check if an object with the same name already exists in the collection
+            existing_object = landmarks_collection.objects.get(landmarks_object_name)
+            if existing_object:
+                # Remove the existing object
+                bpy.data.objects.remove(existing_object, do_unlink=True)
+            
             # Create a new mesh and object
-            mesh = bpy.data.meshes.new(f"{active_object.name}_Landmarks")
-            landmarks_object = bpy.data.objects.new(f"{active_object.name}_Landmarks", mesh)
+            mesh = bpy.data.meshes.new(landmarks_object_name)
+            landmarks_object = bpy.data.objects.new(landmarks_object_name, mesh)
             
             # Link the object to the "Landmarks" collection
             landmarks_collection.objects.link(landmarks_object)
@@ -418,11 +428,12 @@ class VIEW3D_OT_BlendMark_Add3DLandmarkOperator(Operator):
                 self.report({'ERROR'}, f"Landmark '{landmark_name}' already exists, please choose a different name or delete the existing landmark")
                 return {'CANCELLED'}
             
-            # Switch to edit mode
+            # Ensure we are in edit mode
             bpy.ops.object.mode_set(mode='EDIT')
             
             # Get the selected vertices
-            selected_vertices = [v.index for v in active_object.data.vertices if v.select]
+            bm = bmesh.from_edit_mesh(active_object.data)
+            selected_vertices = [v.index for v in bm.verts if v.select]
             
             # Check if exactly one vertex is selected
             if len(selected_vertices) != 1:

@@ -80,4 +80,5 @@ class VIEW3D_PT_BlendMark_Panel_PT(bpy.types.Panel):
         row = box.row()
         row.prop(context.scene, "new_landmark", text="New Landmark", icon='GREASEPENCIL')
         row.operator("view3d.add_3dlandmark", text="Add 3D Landmark", icon='PLUS')
+        row = box.row()
         row.operator("view3d.generate_3dlandmarks", text="Generate 3D Landmarks", icon='MESH_ICOSPHERE')
