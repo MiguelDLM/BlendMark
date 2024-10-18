@@ -65,6 +65,16 @@ def register():
         default=0.1,
     )
 
+    bpy.types.Scene.landmarking_mode = bpy.props.EnumProperty(
+        name="Landmarking Mode",
+        description="Select the landmarking mode",
+        items=[
+            ('2D', "2D", "2D Landmarking Mode"),
+            ('3D', "3D", "3D Landmarking Mode")
+        ],
+        default='2D'
+    )
+
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_BlendMark_Panel_PT)
     bpy.utils.unregister_class(VIEW3D_OT_BlendMark_BrowseFolderOperator)

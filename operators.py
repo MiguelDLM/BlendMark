@@ -40,7 +40,7 @@ class VIEW3D_OT_BlendMark_ImportDataOperator(Operator, ImportHelper):
             
             if file_extension in {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}:
                 # Import as reference image
-                bpy.ops.object.load_reference_image(filepath=filepath)
+                bpy.ops.object.empty_image_add(filepath=filepath, relative_path=True, align='VIEW', location=(0, 0, 0), rotation=(0, 0, 0), scale=(1, 1, 1), background=False)
                 
                 # Rename the imported image object to the filename without extension
                 imported_object = context.view_layer.objects.active
@@ -119,7 +119,7 @@ class VIEW3D_OT_BlendMark_NewLandmarksFileOperator(Operator):
             bpy.ops.wm.tool_set_by_id(name="builtin.cursor")
         
         return {'FINISHED'}
-    
+
 class VIEW3D_OT_BlendMark_NewLandmarkOperator(Operator):
     bl_idname = "view3d.add_landmark"
     bl_label = "Add Landmark"
@@ -176,29 +176,39 @@ class VIEW3D_OT_BlendMark_NewLandmarkOperator(Operator):
             node = active_object.modifiers.get("Landmarks")
             
             if not node:
-                # Create a new geometry node
+                # Create a new geometry node modifier
                 node = active_object.modifiers.new(name="Landmarks", type='NODES')
                 
                 # Create a new geometry node group
                 node_group = bpy.data.node_groups.new(name="Landmarks", type='GeometryNodeTree')
                 node.node_group = node_group
                 
+                # Add input and output sockets to the group
+                node_group.interface.new_socket(name="Geometry", description="Input Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+                node_group.interface.new_socket(name="Geometry", description="Output Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+
                 # Create input and output nodes
                 input_node = node_group.nodes.new('NodeGroupInput')
                 output_node = node_group.nodes.new('NodeGroupOutput')
-                node_group.inputs.new('NodeSocketGeometry', 'Geometry')
-                node_group.outputs.new('NodeSocketGeometry', 'Geometry')
-                
+                input_node.location = (-200, 0)
+                output_node.location = (200, 0)
+
                 # Create a "Mesh to Points" node
                 mesh_to_points = node_group.nodes.new('GeometryNodeMeshToPoints')
+                mesh_to_points.location = (0, 0)
                 
                 # Create an "Instances on Points" node
                 instances_on_points = node_group.nodes.new('GeometryNodeInstanceOnPoints')
+                instances_on_points.location = (400, 0)
                 
                 # Create an "Ico Sphere" node
                 ico_sphere = node_group.nodes.new('GeometryNodeMeshIcoSphere')
                 ico_sphere.inputs['Radius'].default_value = context.scene.sphere_size
                 ico_sphere.inputs['Subdivisions'].default_value = 3
+                ico_sphere.location = (200, -200)
+                
+                # Force data update before connecting
+                bpy.context.view_layer.update()
                 
                 # Connect the nodes
                 node_group.links.new(input_node.outputs['Geometry'], mesh_to_points.inputs['Mesh'])
@@ -211,7 +221,6 @@ class VIEW3D_OT_BlendMark_NewLandmarkOperator(Operator):
             self.report({'ERROR'}, "Active object must be a mesh object")
 
         return {'FINISHED'}
-    
     
 class VIEW3D_OT_BlendMark_ShowLandmarksOperator(Operator):
     bl_idname = "view3d.show_landmarks"
