@@ -120,6 +120,13 @@ class VIEW3D_OT_BlendMark_NewLandmarksFileOperator(Operator):
         
         return {'FINISHED'}
 
+
+def show_message_box(message="", title="Message Box", icon='INFO'):
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
+
 class VIEW3D_OT_BlendMark_NewLandmarkOperator(Operator):
     bl_idname = "view3d.add_landmark"
     bl_label = "Add Landmark"
@@ -132,6 +139,16 @@ class VIEW3D_OT_BlendMark_NewLandmarkOperator(Operator):
         
         # Check if the active object is a mesh object
         if active_object and active_object.type == 'MESH':
+            # Get the name of the new landmark group
+            landmark_name = context.scene.new_landmark
+            
+            # Check if the vertex group already exists
+            if landmark_name in active_object.vertex_groups:
+                message = f"A vertex group with the name '{landmark_name}' already exists. Only one vertex per vertex group is allowed and names cannot be repeated."
+                self.report({'WARNING'}, message)
+                show_message_box(message, title="Warning", icon='ERROR')
+                return {'CANCELLED'}
+            
             # Get the 3D cursor location
             cursor_location = context.scene.cursor.location
             
@@ -151,12 +168,8 @@ class VIEW3D_OT_BlendMark_NewLandmarkOperator(Operator):
             mesh.vertices.add(1)
             mesh.vertices[-1].co = cursor_location
             
-            # Get the name of the new landmark group
-            landmark_name = context.scene.new_landmark
-            
-            # Create the vertex group if it doesn't exist
-            if landmark_name not in active_object.vertex_groups:
-                active_object.vertex_groups.new(name=landmark_name)
+            # Create the vertex group
+            active_object.vertex_groups.new(name=landmark_name)
             
             # Get the vertex group
             vertex_group = active_object.vertex_groups[landmark_name]
@@ -249,7 +262,6 @@ class VIEW3D_OT_BlendMark_ShowLandmarksOperator(Operator):
 
         return {'FINISHED'}
     
-
 class VIEW3D_OT_BlendMark_ExportLandmarksOperator(Operator):
     bl_idname = "view3d.export_landmarks"
     bl_label = "Export Landmarks"
@@ -387,22 +399,32 @@ class VIEW3D_OT_BlendMark_Generate3DLandmarksOperator(Operator):
             node_group = bpy.data.node_groups.new(name="Landmarks", type='GeometryNodeTree')
             node.node_group = node_group
             
+            # Add input and output sockets to the group
+            node_group.interface.new_socket(name="Geometry", description="Input Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+            node_group.interface.new_socket(name="Geometry", description="Output Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+
             # Create input and output nodes
             input_node = node_group.nodes.new('NodeGroupInput')
             output_node = node_group.nodes.new('NodeGroupOutput')
-            node_group.inputs.new('NodeSocketGeometry', 'Geometry')
-            node_group.outputs.new('NodeSocketGeometry', 'Geometry')
-            
+            input_node.location = (-200, 0)
+            output_node.location = (200, 0)
+
             # Create a "Mesh to Points" node
             mesh_to_points = node_group.nodes.new('GeometryNodeMeshToPoints')
+            mesh_to_points.location = (0, 0)
             
             # Create an "Instances on Points" node
             instances_on_points = node_group.nodes.new('GeometryNodeInstanceOnPoints')
+            instances_on_points.location = (400, 0)
             
             # Create an "Ico Sphere" node
             ico_sphere = node_group.nodes.new('GeometryNodeMeshIcoSphere')
             ico_sphere.inputs['Radius'].default_value = context.scene.sphere_size
             ico_sphere.inputs['Subdivisions'].default_value = 3
+            ico_sphere.location = (200, -200)
+            
+            # Force data update before connecting
+            bpy.context.view_layer.update()
             
             # Connect the nodes
             node_group.links.new(input_node.outputs['Geometry'], mesh_to_points.inputs['Mesh'])
@@ -416,7 +438,6 @@ class VIEW3D_OT_BlendMark_Generate3DLandmarksOperator(Operator):
             return {'CANCELLED'}
         
         return {'FINISHED'}
-        
 class VIEW3D_OT_BlendMark_Add3DLandmarkOperator(Operator):
     bl_idname = "view3d.add_3dlandmark"
     bl_label = "Add 3D Landmark"
