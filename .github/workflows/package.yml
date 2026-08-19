@@ -30,15 +30,13 @@ jobs:
         id: meta
         run: |
           python - << 'PYEOF'
-          import re, os
-          with open("blender_manifest.toml", "r", encoding="utf-8") as f:
-              content = f.read()
+          import os, tomllib
           
-          version_match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
-          id_match = re.search(r'id\s*=\s*["\']([^"\']+)["\']', content)
+          with open("blender_manifest.toml", "rb") as f:
+              data = tomllib.load(f)
           
-          version = version_match.group(1) if version_match else "2.0.0"
-          ext_id = id_match.group(1) if id_match else "blendmark"
+          version = data.get("version", "2.0.0")
+          ext_id = data.get("id", "blendmark")
           
           print(f"Extension ID: {ext_id}")
           print(f"Extension Version: {version}")
