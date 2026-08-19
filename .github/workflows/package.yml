@@ -1,0 +1,102 @@
+name: Package Blender Extension
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Package Extension Zip
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Extract metadata from manifest
+        id: meta
+        run: |
+          python - << 'PYEOF'
+          import re, os
+          with open("blender_manifest.toml", "r", encoding="utf-8") as f:
+              content = f.read()
+          
+          version_match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
+          id_match = re.search(r'id\s*=\s*["\']([^"\']+)["\']', content)
+          
+          version = version_match.group(1) if version_match else "2.0.0"
+          ext_id = id_match.group(1) if id_match else "blendmark"
+          
+          print(f"Extension ID: {ext_id}")
+          print(f"Extension Version: {version}")
+          
+          github_output = os.environ.get('GITHUB_OUTPUT')
+          if github_output:
+              with open(github_output, 'a', encoding='utf-8') as out:
+                  out.write(f"version={version}\n")
+                  out.write(f"id={ext_id}\n")
+          PYEOF
+
+      - name: Create Extension Zip Package
+        run: |
+          mkdir -p dist
+          python - << 'PYEOF'
+          import os, zipfile
+
+          ext_id = "${{ steps.meta.outputs.id }}" or "blendmark"
+          version = "${{ steps.meta.outputs.version }}" or "2.0.0"
+          
+          versioned_zip = f"dist/{ext_id}-{version}.zip"
+          latest_zip = f"dist/{ext_id}.zip"
+
+          # Essential files and folders for Blender 4.2+ extension
+          includes = ["__init__.py", "blender_manifest.toml", "core"]
+          
+          def create_zip(target_path):
+              with zipfile.ZipFile(target_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                  for item in includes:
+                      if os.path.isfile(item):
+                          zipf.write(item, arcname=item)
+                      elif os.path.isdir(item):
+                          for root, dirs, files in os.walk(item):
+                              # Skip __pycache__ and hidden folders
+                              if "__pycache__" in root or "/." in root:
+                                  continue
+                              for file in files:
+                                  if file.endswith((".pyc", ".pyo", ".pyd")):
+                                      continue
+                                  full_path = os.path.join(root, file)
+                                  rel_path = os.path.relpath(full_path, ".")
+                                  zipf.write(full_path, arcname=rel_path)
+
+          create_zip(versioned_zip)
+          create_zip(latest_zip)
+          print(f"Successfully generated {versioned_zip} and {latest_zip}")
+          PYEOF
+
+      - name: Upload Extension Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blendmark-extension
+          path: dist/*.zip
+          retention-days: 90
+
+      - name: Create GitHub Release & Upload Assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
