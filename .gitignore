@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Extension builds & archives
+*.zip
+dist/
+build/
+
+# Blender temporary files
+*.blend1
+*.blend@
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
